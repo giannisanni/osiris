@@ -14,6 +14,7 @@ interface OsirisMapProps {
   flyToLocation?: { lat: number; lng: number; ts: number } | null;
   projection?: 'mercator' | 'globe';
   mapStyle?: string;
+  terrain?: boolean;
 }
 
 function computeSolarTerminator(): [number, number][] {
@@ -38,7 +39,7 @@ function computeSolarTerminator(): [number, number][] {
 
 const EMPTY_FC = { type: 'FeatureCollection' as const, features: [] };
 
-function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightClick, onViewStateChange, flyToLocation, projection = 'globe', mapStyle = 'dark' }: OsirisMapProps) {
+function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightClick, onViewStateChange, flyToLocation, projection = 'globe', mapStyle = 'dark', terrain = false }: OsirisMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
@@ -86,23 +87,36 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
-    const map = new maplibregl.Map({
+    // Perf knobs for ~4k-entity globes on integrated-GPU laptops:
+    //   antialias=false  → ~30% faster paint on weaker GPUs, mild edge
+    //                      shimmer at low zoom that's barely visible
+    //                      against the dark theme.
+    //   fadeDuration=0   → no cross-fade between tile zoom levels;
+    //                      drag-globe stutter goes away.
+    //   refreshExpiredTiles=false → don't redownload expired tiles while
+    //                      panning. Tiles refresh on next interaction.
+    //   crossSourceCollisions=false → cheaper label collision math when
+    //                      many sources are active simultaneously.
+    // Cast: maplibre-gl 5.x's TS types don't surface antialias, but the
+    // option is honored at runtime (verified against the source).
+    const mapOpts: any = {
       container: containerRef.current,
       // Tile source history:
-      //   1. CartoDB basemaps → returned "Error 69001 - Contact webmaster"
-      //      under load.
-      //   2. Stadia Maps Alidade Smooth Dark → free tier rejects requests
-      //      from non-localhost hosts without an API key; globe rendered
-      //      empty when accessed via http://substrate:3100/.
-      //   3. OpenFreeMap (current) → genuinely free, no key, no quota,
-      //      MapLibre-native, multiple dark styles. Hosted by a non-profit
-      //      so usage is encouraged.
-      // Override with NEXT_PUBLIC_MAP_STYLE if you want MapTiler / self-hosted.
+      //   1. CartoDB basemaps → "Error 69001 - Contact webmaster" under load
+      //   2. Stadia Maps Alidade Smooth Dark → free tier rejects
+      //      non-localhost requests without a key
+      //   3. OpenFreeMap (current) → free, no key, no quota
+      // Override via NEXT_PUBLIC_MAP_STYLE for MapTiler / self-hosted.
       style: process.env.NEXT_PUBLIC_MAP_STYLE || 'https://tiles.openfreemap.org/styles/dark',
       center: [20, 20], zoom: 2.5, minZoom: 1.5, maxZoom: 20,
       attributionControl: false,
       maxPitch: 85,
-    });
+      antialias: false,
+      fadeDuration: 0,
+      refreshExpiredTiles: false,
+      crossSourceCollisions: false,
+    };
+    const map = new maplibregl.Map(mapOpts);
 
     map.on('load', () => {
       mapRef.current = map;
@@ -735,6 +749,38 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       homeMarkerRef.current = null;
     }
   }, [mapReady, activeLayers.home]);
+
+  // 3D terrain via AWS Terrarium DEM tiles. Public S3 bucket maintained
+  // by AWS Open Data — no key, no quota, attribution required (visible
+  // via MapLibre's auto attribution control if enabled). DEM encoding
+  // is `terrarium`, which MapLibre supports natively.
+  // We register the source once and toggle setTerrain on/off so the
+  // tiles get reused when the operator flips terrain back on later.
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    const map = mapRef.current;
+    try {
+      if (!map.getSource('dem-terrarium')) {
+        map.addSource('dem-terrarium', {
+          type: 'raster-dem',
+          tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          encoding: 'terrarium',
+          attribution: 'Mapzen / AWS Open Data',
+          maxzoom: 15,
+        });
+      }
+      if (terrain) {
+        // exaggeration 1.4 reads as "real but cinematic" — flat plains
+        // stay flat, ranges (Andes, Himalayas) get visible bumps.
+        map.setTerrain({ source: 'dem-terrarium', exaggeration: 1.4 });
+      } else {
+        map.setTerrain(null);
+      }
+    } catch (e) {  // noqa
+      console.warn('[OsirisMap] terrain toggle failed:', e);
+    }
+  }, [mapReady, terrain]);
 
   // Day/Night
   useEffect(() => {
