@@ -152,11 +152,18 @@ function propagateSGP4Simple(line1: string, line2: string): { lat: number; lng: 
 
 // Multiple TLE sources with fallback chain
 const TLE_SOURCES = [
-  // CelesTrak GP format (JSON-based, more reliable from cloud)
+  // CelesTrak GP format — full active catalogue. CelesTrak rate-limits
+  // this aggressively from cloud IPs; when it returns we use it as the
+  // primary source. Otherwise we fall through to the per-constellation
+  // groups below.
   { url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle', type: 'tle' },
-  // CelesTrak alternative domain
   { url: 'https://celestrak.com/NORAD/elements/gp.php?GROUP=active&FORMAT=tle', type: 'tle' },
-  // Curated smaller catalogs if full catalog fails
+  // Big commercial constellations. Operator complained about missing
+  // Starlinks so these are now first-class fallback sources, not
+  // afterthoughts. Each is ~1 MB and reliable.
+  { url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle', type: 'tle', group: 'starlink' },
+  { url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=oneweb&FORMAT=tle', type: 'tle', group: 'oneweb' },
+  // Curated smaller catalogs.
   { url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle', type: 'tle', group: 'stations' },
   { url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle', type: 'tle', group: 'visual' },
   { url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle', type: 'tle', group: 'weather' },
