@@ -501,6 +501,20 @@ export default function Dashboard() {
 
 
 
+      {/* Collapse/expand button for the left HUD — visible whether the
+          panel is open or closed so the operator can always recover.
+          Keyboard 'l' still toggles too. */}
+      <button
+        onClick={() => setShowLayers(v => !v)}
+        className="desktop-panel absolute top-1/2 -translate-y-1/2 z-[210] glass-panel pointer-events-auto p-1.5 hover:border-[var(--gold-primary)]/50 transition-all"
+        style={{ left: showLayers ? '21rem' : '0.25rem' }}
+        title={showLayers ? 'Collapse panel (L)' : 'Expand panel (L)'}
+      >
+        <span className="block text-[var(--gold-primary)] font-mono text-xs leading-none">
+          {showLayers ? '◀' : '▶'}
+        </span>
+      </button>
+
       {/* ── LEFT HUD (desktop): Layers + Stats + Markets + Intel ── */}
       <div className="desktop-panel absolute left-5 top-20 bottom-24 w-72 flex flex-col gap-3 z-[200] pointer-events-none overflow-y-auto styled-scrollbar pr-1">
         {showLayers && (
