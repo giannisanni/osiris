@@ -68,7 +68,12 @@ function parseTLE(tleText: string) {
     if (!line1?.startsWith('1 ') || !line2?.startsWith('2 ')) continue;
     if (name.startsWith('1 ') || name.startsWith('2 ')) continue;
 
-    satellites.push({ name, line1, line2 });
+    // TLE format: NORAD catalogue number lives in line1 chars 2-7
+    // (1-indexed, so substring(2,7) in JS). Trimming whitespace handles
+    // 4-digit NORAD IDs that are left-padded with a space.
+    const noradId = line1.substring(2, 7).trim();
+
+    satellites.push({ name, line1, line2, norad_id: noradId });
     i += 2; // skip the TLE lines
   }
   return satellites;
@@ -225,9 +230,13 @@ export async function GET() {
       }
     }
 
-    // Sample for performance (max 2000 satellites)
-    const sampled = allSats.length > 2000
-      ? allSats.filter((_, i) => i % Math.ceil(allSats.length / 2000) === 0)
+    // Sampling cap. Was 2000 — that quietly dropped most Starlinks
+    // (Starlink is ~7k of the ~12k active payloads). With the new 3D
+    // orbital InstancedMesh layer 10k satellites is cheap on the
+    // client; only the JSON payload size is a concern (~1.5 MB at 10k).
+    const MAX_SATS = 10000;
+    const sampled = allSats.length > MAX_SATS
+      ? allSats.filter((_, i) => i % Math.ceil(allSats.length / MAX_SATS) === 0)
       : allSats;
 
     const satellites = [];
@@ -238,6 +247,7 @@ export async function GET() {
       const classification = classifySatellite(sat.name);
       satellites.push({
         name: sat.name,
+        norad_id: sat.norad_id,
         lat: pos.lat,
         lng: pos.lng,
         alt: pos.alt,
