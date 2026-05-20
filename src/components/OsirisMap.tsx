@@ -85,7 +85,12 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     if (!containerRef.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      // CartoDB basemaps started returning "Error 69001 - Contact webmaster"
+      // under panning load. Stadia Maps' Alidade Smooth Dark is the closest
+      // visual match, free for non-commercial use, and has a much friendlier
+      // rate limit. NEXT_PUBLIC_MAP_STYLE overrides if you ever want MapTiler
+      // or a self-hosted style.
+      style: process.env.NEXT_PUBLIC_MAP_STYLE || 'https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json',
       center: [20, 20], zoom: 2.5, minZoom: 1.5, maxZoom: 18,
       attributionControl: false,
       maxPitch: 85,
