@@ -46,6 +46,7 @@ function ClaudePanel({
 
   useEffect(() => {
     if (!hostRef.current) return;
+    const host = hostRef.current;
 
     const term = new XTerm({
       cursorBlink: true,
@@ -60,10 +61,31 @@ function ClaudePanel({
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
-    term.open(hostRef.current);
-    fit.fit();
     xtermRef.current = term;
     fitRef.current = fit;
+
+    // xterm's Viewport throws "Cannot read properties of undefined
+    // (reading 'dimensions')" when opened against a host that hasn't
+    // been laid out yet (zero width/height). Wait one rAF for the
+    // browser to settle the layout, then open. If we still can't get a
+    // real size we bail; the ResizeObserver below will retry on the
+    // next mutation.
+    let cancelled = false;
+    const openWhenSized = () => {
+      if (cancelled || !host.isConnected) return;
+      if (host.clientWidth === 0 || host.clientHeight === 0) {
+        requestAnimationFrame(openWhenSized);
+        return;
+      }
+      try {
+        term.open(host);
+        fit.fit();
+      } catch (e) {  // noqa
+        console.warn('[ClaudeTerminal] xterm init deferred:', e);
+        requestAnimationFrame(openWhenSized);
+      }
+    };
+    requestAnimationFrame(openWhenSized);
 
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
@@ -112,6 +134,7 @@ function ClaudePanel({
     ro.observe(hostRef.current);
 
     return () => {
+      cancelled = true;
       onData.dispose();
       ro.disconnect();
       try {
