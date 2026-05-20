@@ -85,13 +85,18 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     if (!containerRef.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      // CartoDB basemaps started returning "Error 69001 - Contact webmaster"
-      // under panning load. Stadia Maps' Alidade Smooth Dark is the closest
-      // visual match, free for non-commercial use, and has a much friendlier
-      // rate limit. NEXT_PUBLIC_MAP_STYLE overrides if you ever want MapTiler
-      // or a self-hosted style.
-      style: process.env.NEXT_PUBLIC_MAP_STYLE || 'https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json',
-      center: [20, 20], zoom: 2.5, minZoom: 1.5, maxZoom: 18,
+      // Tile source history:
+      //   1. CartoDB basemaps → returned "Error 69001 - Contact webmaster"
+      //      under load.
+      //   2. Stadia Maps Alidade Smooth Dark → free tier rejects requests
+      //      from non-localhost hosts without an API key; globe rendered
+      //      empty when accessed via http://substrate:3100/.
+      //   3. OpenFreeMap (current) → genuinely free, no key, no quota,
+      //      MapLibre-native, multiple dark styles. Hosted by a non-profit
+      //      so usage is encouraged.
+      // Override with NEXT_PUBLIC_MAP_STYLE if you want MapTiler / self-hosted.
+      style: process.env.NEXT_PUBLIC_MAP_STYLE || 'https://tiles.openfreemap.org/styles/dark',
+      center: [20, 20], zoom: 2.5, minZoom: 1.5, maxZoom: 20,
       attributionControl: false,
       maxPitch: 85,
     });
@@ -682,10 +687,12 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
   // Paramaribo city centre (the same fallback the Mentat bridge uses).
   useEffect(() => {
     if (!mapReady || !mapRef.current || !activeLayers.home) return;
-    const lat = parseFloat(process.env.NEXT_PUBLIC_MENTAT_HOME_LAT || '5.8328');
-    const lng = parseFloat(process.env.NEXT_PUBLIC_MENTAT_HOME_LON || '-55.1748');
+    const lat = parseFloat(process.env.NEXT_PUBLIC_MENTAT_HOME_LAT || '5.8448');
+    const lng = parseFloat(process.env.NEXT_PUBLIC_MENTAT_HOME_LON || '-55.1859');
     if (!isFinite(lat) || !isFinite(lng)) return;
-    mapRef.current.flyTo({ center: [lng, lat], zoom: 12, duration: 1500 });
+    // Zoom 18 = "see your roof". Stadia Maps tops out around 20; pick a
+    // value that fits the building in frame without burning the tile cache.
+    mapRef.current.flyTo({ center: [lng, lat], zoom: 18, duration: 1500 });
   }, [mapReady, activeLayers.home]);
 
   // Day/Night

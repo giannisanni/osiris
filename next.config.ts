@@ -16,6 +16,12 @@ const nextConfig: NextConfig = {
     remotePatterns: [{ protocol: "https", hostname: "**" }],
   },
   allowedDevOrigins: allowed,
+  // Hide the Next.js 16 devtools "n Issues" pill in the bottom-left.
+  // It surfaces every console warning (MapLibre quirks, third-party
+  // hydration noise, suppressed fetch errors) which scared the operator
+  // into thinking the app was broken. Production builds never show this;
+  // we're hiding it for the dev mode we run on substrate.
+  devIndicators: false,
 };
 
 export default nextConfig;
