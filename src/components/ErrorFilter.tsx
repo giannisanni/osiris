@@ -18,13 +18,16 @@
  */
 
 const SUPPRESS_PATTERNS: RegExp[] = [
-  // Next.js 16 devtools panel — Radix ScrollArea inside the panel calls
-  // .dimensions on a Viewport ref before it mounts in some interaction
-  // paths. Non-fatal; the panel itself is hidden by devIndicators:false.
+  // xterm.js Viewport syncScrollArea race when the Claude panel mounts
+  // before the host has been laid out. Already mitigated by the rAF
+  // poller in ClaudeTerminal but the dev overlay still catches the
+  // initial throw in some cases.
   /Cannot read properties of undefined \(reading 'dimensions'\)/,
   // MapLibre's bin format / worker message protocol — empty string table
-  // during style swap. The next frame recovers automatically.
-  /_numberToString\.length\s*0/,
+  // during style swap, layer add, or popup interaction. The next frame
+  // recovers automatically; the dev overlay just panics about it.
+  /_numberToString/,
+  /Out of bounds\. Index requested/,
   // MapLibre glyph fetch 404s for fonts the upstream tile server doesn't
   // serve. MapLibre falls back to local rendering, so this is just noise.
   /Unable to load glyph range/,

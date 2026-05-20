@@ -508,8 +508,10 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
           <div><span style="color:#5C5A54;">MISSION</span><br/><span style="color:${p.color||'#aaa'};">${p.mission||'Unknown'}</span></div>
           <div><span style="color:#5C5A54;">POS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(2)}°, ${coords[0].toFixed(2)}°</span></div>
         </div>
-        <a href="https://celestrak.org/cgi-bin/TLE.pl?CATNR=${encodeURIComponent(p.norad_id||p.norad||'')}&FORMAT=full" target="_blank" style="${linkStyle}color:#D4AF37;border:1px solid rgba(212,175,55,0.4);background:rgba(212,175,55,0.1);">🔭 TLE ON CELESTRAK</a>
-        <a href="https://platform.leolabs.space/visualization/leo#search:${encodeURIComponent(p.name||'')}" target="_blank" style="${linkStyle}color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);">📡 LEOLABS 3D</a>
+        ${p.norad_id || p.norad
+          ? `<a href="https://www.heavens-above.com/orbit.aspx?satid=${encodeURIComponent(p.norad_id||p.norad)}" target="_blank" style="${linkStyle}color:#D4AF37;border:1px solid rgba(212,175,55,0.4);background:rgba(212,175,55,0.1);">🔭 ORBIT VIEW</a>
+             <a href="https://celestrak.org/NORAD/elements/gp.php?CATNR=${encodeURIComponent(p.norad_id||p.norad)}&FORMAT=tle" target="_blank" style="${linkStyle}color:#00E5FF;border:1px solid rgba(0,229,255,0.4);background:rgba(0,229,255,0.1);">📡 TLE</a>`
+          : `<a href="https://celestrak.org/satcat/search.php?NAME=${encodeURIComponent(p.name||'')}" target="_blank" style="${linkStyle}color:#D4AF37;border:1px solid rgba(212,175,55,0.4);background:rgba(212,175,55,0.1);">🔭 SEARCH SATCAT</a>`}
       </div>`);
     });
 
