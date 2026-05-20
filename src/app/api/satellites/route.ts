@@ -160,8 +160,12 @@ const TLE_SOURCES = [
   { url: 'https://celestrak.com/NORAD/elements/gp.php?GROUP=active&FORMAT=tle', type: 'tle' },
   // Big commercial constellations. Operator complained about missing
   // Starlinks so these are now first-class fallback sources, not
-  // afterthoughts. Each is ~1 MB and reliable.
+  // afterthoughts. Each is ~1 MB.
+  // CelesTrak's per-IP 2h rate-limit is real; we also pull from the
+  // tle.ivanstanojevic.me community mirror and CelesTrak's
+  // supplemental endpoint so at least one source usually works.
   { url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle', type: 'tle', group: 'starlink' },
+  { url: 'https://celestrak.org/NORAD/elements/supplemental/sup-gp.php?FILE=starlink&FORMAT=tle', type: 'tle', group: 'starlink-supp' },
   { url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=oneweb&FORMAT=tle', type: 'tle', group: 'oneweb' },
   // Curated smaller catalogs.
   { url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle', type: 'tle', group: 'stations' },
