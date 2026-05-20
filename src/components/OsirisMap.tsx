@@ -522,8 +522,8 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     // dispatches `mentat:ask-claude` so the ClaudeTerminal can open
     // itself and queue the input. Inline onclick would break under
     // popup HTML escaping; this is sturdier.
-    const askClaudeBtn = (prompt: string, color: string) =>
-      `<button type="button" data-claude-prompt="${prompt.replace(/"/g, '&quot;')}" style="${linkStyle}background:rgba(212,175,55,0.12);color:#D4AF37;border:1px solid rgba(212,175,55,0.5);cursor:pointer;display:inline-flex;align-items:center;gap:4px;">🧠 ASK CLAUDE</button>`;
+    const askClaudeBtn = (prompt: string, _color: string) =>
+      `<button type="button" data-claude-prompt="${prompt.replace(/"/g, '&quot;')}" style="${linkStyle}background:rgba(212,175,55,0.12);color:#D4AF37;border:1px solid rgba(212,175,55,0.5);cursor:pointer;">ASK CLAUDE</button>`;
 
     // ── GDELT Conflicts (with source article) ──
     map.on('click', 'gdelt-dots', e => {
