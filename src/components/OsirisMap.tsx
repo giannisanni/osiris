@@ -42,6 +42,9 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  // Home marker is created lazily and torn down when the Home layer toggles
+  // off — we don't want a permanent rendering of the operator's address.
+  const homeMarkerRef = useRef<maplibregl.Marker | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const prevStyleRef = useRef(mapStyle);
 
@@ -678,21 +681,59 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     return () => { map.remove(); mapRef.current = null; };
   }, []);
 
-  // Mentat home zoom shortcut: when the "home" layer toggle flips on,
-  // fly the camera to MENTAT_HOME_LAT/LON. We don't render a marker —
-  // that would double as a position disclosure and clash with the
-  // "home stays private" rule. The toggle is purely a navigation
-  // shortcut; flipping it off does nothing (no marker to clear).
+  // Mentat home pin + zoom shortcut. When the operator flips the "home"
+  // layer on, we (1) fly the camera to MENTAT_HOME_LAT/LON and (2) drop
+  // a gold pin at the exact spot so the building reads as ours among
+  // the rooftops. When the layer toggles off the pin is removed — we
+  // don't leave a permanent address disclosure on the map.
   // Reads NEXT_PUBLIC_MENTAT_HOME_LAT/LON at build time; defaults to
-  // Paramaribo city centre (the same fallback the Mentat bridge uses).
+  // the operator's actual Paramaribo address.
   useEffect(() => {
-    if (!mapReady || !mapRef.current || !activeLayers.home) return;
+    if (!mapReady || !mapRef.current) return;
+    const map = mapRef.current;
     const lat = parseFloat(process.env.NEXT_PUBLIC_MENTAT_HOME_LAT || '5.8448');
     const lng = parseFloat(process.env.NEXT_PUBLIC_MENTAT_HOME_LON || '-55.1859');
-    if (!isFinite(lat) || !isFinite(lng)) return;
-    // Zoom 18 = "see your roof". Stadia Maps tops out around 20; pick a
-    // value that fits the building in frame without burning the tile cache.
-    mapRef.current.flyTo({ center: [lng, lat], zoom: 18, duration: 1500 });
+    const rawLabel = process.env.NEXT_PUBLIC_MENTAT_HOME_LABEL || 'Home';
+    // Defensive: escape the label before interpolating into popup HTML,
+    // because env vars are operator-set strings we don't fully control.
+    const safeLabel = rawLabel
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+    if (activeLayers.home && isFinite(lat) && isFinite(lng)) {
+      if (!homeMarkerRef.current) {
+        // Build a DOM marker matching Osiris's gold-on-dark aesthetic.
+        // SVG inline so the pin scales crisply across zoom levels.
+        const el = document.createElement('div');
+        el.style.cssText = 'cursor:pointer;filter:drop-shadow(0 0 6px rgba(212,175,55,0.6));';
+        // Static SVG — no interpolation, safe.
+        // eslint-disable-next-line no-restricted-syntax
+        el.innerHTML = '<svg width="34" height="44" viewBox="0 0 34 44" fill="none" xmlns="http://www.w3.org/2000/svg">'
+          + '<path d="M17 0 C7.6 0 0 7.6 0 17 C0 29.75 17 44 17 44 C17 44 34 29.75 34 17 C34 7.6 26.4 0 17 0 Z" fill="#D4AF37" stroke="#1a1a1a" stroke-width="1.5"/>'
+          + '<path d="M17 9 L9 16.5 V25 H14 V20 H20 V25 H25 V16.5 Z" fill="#1a1a1a"/>'
+          + '<circle cx="17" cy="17" r="2.5" fill="#D4AF37" opacity="0.4"/>'
+          + '</svg>';
+        const popupHtml =
+          '<div style="font-family:ui-monospace,Menlo,monospace;color:#E8E6E0;background:#0a0a0a;padding:8px 12px;border:1px solid rgba(212,175,55,0.4);border-radius:6px;min-width:140px;">'
+          + '<div style="color:#D4AF37;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:2px;">HOME</div>'
+          + '<div style="font-size:13px;font-weight:600;">' + safeLabel + '</div>'
+          + '<div style="font-size:10px;color:#888;margin-top:4px;">' + lat.toFixed(4) + ', ' + lng.toFixed(4) + '</div>'
+          + '</div>';
+        const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+          .setLngLat([lng, lat])
+          .setPopup(new maplibregl.Popup({ offset: 24, closeButton: false }).setHTML(popupHtml))
+          .addTo(map);
+        homeMarkerRef.current = marker;
+      }
+      // Zoom 18 = "see your roof". OpenFreeMap tops out around 19–20;
+      // pick a value that fits the building in frame.
+      map.flyTo({ center: [lng, lat], zoom: 18, duration: 1500 });
+    } else if (!activeLayers.home && homeMarkerRef.current) {
+      homeMarkerRef.current.remove();
+      homeMarkerRef.current = null;
+    }
   }, [mapReady, activeLayers.home]);
 
   // Day/Night
