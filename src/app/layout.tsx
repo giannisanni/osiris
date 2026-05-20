@@ -180,6 +180,7 @@ const jsonLd = {
 import { Analytics } from "@vercel/analytics/next";
 
 import ErrorBoundary from '@/components/ErrorBoundary';
+import ErrorFilter from '@/components/ErrorFilter';
 
 export default function RootLayout({
   children,
@@ -203,6 +204,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased" suppressHydrationWarning>
+        <ErrorFilter />
         <ErrorBoundary name="OSIRIS Core">
           {children}
         </ErrorBoundary>
