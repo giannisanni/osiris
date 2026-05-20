@@ -14,10 +14,9 @@ import ViewPresets from '@/components/ViewPresets';
 import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 import GlobalStatusBar from '@/components/GlobalStatusBar';
 import LiveAlerts from '@/components/LiveAlerts';
-import dynamic from 'next/dynamic';
 // xterm.js references `self` at module load, which crashes Next 16 SSR.
 // Lazy-loading client-side dodges that and keeps the rest of the page
-// streamable.
+// streamable. `dynamic` is already imported at the top of this file.
 const ClaudeTerminal = dynamic(() => import('@/components/ClaudeTerminal'), { ssr: false });
 
 const OsirisMap = dynamic(() => import('@/components/OsirisMap'), { ssr: false });
