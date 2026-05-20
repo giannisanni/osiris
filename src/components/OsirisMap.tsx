@@ -286,7 +286,15 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
         'text-offset': [0, 2], 'text-max-width': 14, 'text-allow-overlap': false,
       }, paint: { 'text-color': '#76FF03', 'text-halo-color': '#000', 'text-halo-width': 1, 'text-opacity': 0.7 }});
 
-      // Satellites
+      // Satellites — two stacked layers. The bottom one (sat-hit) is
+      // invisible but renders at a 7-12px radius so hit-testing works;
+      // the visible sat-dots layer paints the actual 1.5-3px coloured
+      // dot on top. Previously you couldn't click satellites at world
+      // zoom because the dots were too small for MapLibre to detect.
+      map.addLayer({ id: 'sat-hit', type: 'circle', source: 'satellites', paint: {
+        'circle-radius': ['interpolate',['linear'],['zoom'], 1,7, 5,10, 10,14],
+        'circle-color': '#000', 'circle-opacity': 0,
+      }});
       map.addLayer({ id: 'sat-dots', type: 'circle', source: 'satellites', paint: {
         'circle-radius': ['interpolate',['linear'],['zoom'], 1,1.5, 5,3], 'circle-color': ['get','color'], 'circle-opacity': 0.7,
       }});
@@ -486,8 +494,11 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       </div>`);
     });
 
-    // ── Satellites (with N2YO tracking) ──
-    map.on('click', 'sat-dots', e => {
+    // ── Satellites (with Celestrak/LEOLabs links) ──
+    // Click registered on sat-hit (the 7-14px invisible hit-target)
+    // rather than the 1.5-3px visible sat-dots so the click actually
+    // lands on world-zoom views.
+    map.on('click', 'sat-hit', e => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
@@ -581,7 +592,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
 
 
     // ── Generic hover for clickables ──
-    ['conflict-icons','cctv-dots','eq-circles','sat-dots','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','balloon-dots','rad-dots','ship-dots'].forEach(layer => {
+    ['conflict-icons','cctv-dots','eq-circles','sat-hit','fires-heat','gdelt-dots','weather-dots','infra-dots','maritime-dots','choke-dots','news-dots','balloon-dots','rad-dots','ship-dots'].forEach(layer => {
       map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
     });
@@ -953,7 +964,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
   useEffect(() => {
     if (!mapReady) return;
     setVis(['eq-circles','eq-label'], activeLayers.earthquakes);
-    setVis(['sat-dots'], activeLayers.satellites);
+    setVis(['sat-dots', 'sat-hit'], activeLayers.satellites);
     setVis(['gdelt-dots'], activeLayers.global_incidents);
     setVis(['jam-fill','jam-label'], activeLayers.gps_jamming);
     setVis(['day-night-fill'], activeLayers.day_night);
