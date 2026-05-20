@@ -501,17 +501,23 @@ export default function Dashboard() {
 
 
 
-      {/* Collapse/expand button for the left HUD — visible whether the
-          panel is open or closed so the operator can always recover.
-          Keyboard 'l' still toggles too. */}
+      {/* Collapse/expand button for the entire left HUD column — Layers,
+          Markets & Intel, and SIGINT FEED all toggle together. Each
+          section keeps its own per-panel chevron for individual
+          collapsing once expanded. Keyboard 'l' still works. */}
       <button
-        onClick={() => setShowLayers(v => !v)}
+        onClick={() => {
+          const next = !(showLayers || showMarkets || showIntel);
+          setShowLayers(next);
+          setShowMarkets(next);
+          setShowIntel(next);
+        }}
         className="desktop-panel absolute top-1/2 -translate-y-1/2 z-[210] glass-panel pointer-events-auto p-1.5 hover:border-[var(--gold-primary)]/50 transition-all"
-        style={{ left: showLayers ? '21rem' : '0.25rem' }}
-        title={showLayers ? 'Collapse panel (L)' : 'Expand panel (L)'}
+        style={{ left: (showLayers || showMarkets || showIntel) ? '21rem' : '0.25rem' }}
+        title={(showLayers || showMarkets || showIntel) ? 'Collapse panel (L)' : 'Expand panel (L)'}
       >
         <span className="block text-[var(--gold-primary)] font-mono text-xs leading-none">
-          {showLayers ? '◀' : '▶'}
+          {(showLayers || showMarkets || showIntel) ? '◀' : '▶'}
         </span>
       </button>
 
