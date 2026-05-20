@@ -372,7 +372,7 @@ export default function Dashboard() {
             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.6 }} className="w-16 h-16 rounded-full border-2 border-[var(--gold-primary)] flex items-center justify-center mb-4 animate-glow-pulse">
               <div className="w-8 h-8 rounded-full bg-[var(--gold-primary)]/20 border border-[var(--gold-primary)]/40" />
             </motion.div>
-            <motion.h1 initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }} className="text-3xl font-bold tracking-[0.6em] text-[var(--text-heading)] font-mono">OSIRIS</motion.h1>
+            <motion.h1 initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }} className="text-3xl font-bold tracking-[0.6em] text-[var(--text-heading)] font-mono">MENTAT</motion.h1>
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="text-[9px] text-[var(--gold-primary)] font-mono tracking-[0.3em] mt-2">INITIALIZING GLOBAL INTELLIGENCE FEEDS...</motion.p>
             <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.8, duration: 1.5 }} className="w-48 h-[2px] bg-gradient-to-r from-transparent via-[var(--gold-primary)] to-transparent mt-6 origin-left" />
           </motion.div>
@@ -444,7 +444,7 @@ export default function Dashboard() {
           <div className="absolute w-full h-[1px] bg-[var(--gold-primary)]/30" />
         </div>
         <div>
-          <h1 className="text-base md:text-xl font-bold tracking-[0.4em] md:tracking-[0.5em] text-[var(--text-heading)] font-mono">OSIRIS</h1>
+          <h1 className="text-base md:text-xl font-bold tracking-[0.4em] md:tracking-[0.5em] text-[var(--text-heading)] font-mono">MENTAT</h1>
           <span className="text-[8px] md:text-[9px] text-[var(--gold-primary)] font-mono tracking-[0.2em] md:tracking-[0.3em] opacity-80">GLOBAL INTELLIGENCE PLATFORM</span>
         </div>
       </motion.div>
@@ -456,6 +456,11 @@ export default function Dashboard() {
         {spaceWeather && <span className="hidden lg:inline">SOLAR: <span style={{ color: spaceWeather.storm_color, fontWeight: 700 }}>Kp{spaceWeather.kp_index}</span></span>}
         <UptimeClock />
         <span>V4.1</span>
+        <a
+          href={(typeof process !== "undefined" && process.env.NEXT_PUBLIC_MENTAT_HOME_URL) || "http://substrate:63682"}
+          className="pointer-events-auto px-2 py-0.5 rounded-full border border-[var(--gold-primary)]/40 text-[var(--gold-primary)] hover:bg-[var(--gold-primary)]/15 transition-colors"
+          title="Switch to Mentat Home"
+        >HOME</a>
       </motion.div>
 
       {/* ── MOBILE: Compact top status ── */}
@@ -465,6 +470,10 @@ export default function Dashboard() {
             <div className={`w-1.5 h-1.5 rounded-full ${backendStatus === 'connected' ? 'bg-[var(--alert-green)]' : 'bg-[var(--alert-red)]'} animate-osiris-pulse`} />
             <span style={{ color: threatColor, fontWeight: 700 }}>{threatLevel}</span>
           </div>
+          <a
+            href={(typeof process !== "undefined" && process.env.NEXT_PUBLIC_MENTAT_HOME_URL) || "http://substrate:63682"}
+            className="pointer-events-auto glass-panel px-2 py-1.5 text-[8px] font-mono tracking-wider text-[var(--gold-primary)]"
+          >HOME</a>
         </motion.div>
       )}
 
@@ -637,7 +646,7 @@ export default function Dashboard() {
                 <div className="px-3 pb-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="hud-text text-[9px] text-[var(--text-primary)]">
-                      {mobilePanel === 'layers' ? 'LAYERS & STATS' : mobilePanel === 'markets' ? 'MARKETS & INTEL' : mobilePanel === 'intel' ? 'INTEL FEED' : mobilePanel === 'recon' ? 'OSIRIS RECON' : 'SEARCH'}
+                      {mobilePanel === 'layers' ? 'LAYERS & STATS' : mobilePanel === 'markets' ? 'MARKETS & INTEL' : mobilePanel === 'intel' ? 'INTEL FEED' : mobilePanel === 'recon' ? 'MENTAT RECON' : 'SEARCH'}
                     </span>
                     <button onClick={() => setMobilePanel(null)} className="text-[var(--text-muted)] p-1"><X className="w-4 h-4" /></button>
                   </div>

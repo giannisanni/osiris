@@ -668,6 +668,21 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     return () => { map.remove(); mapRef.current = null; };
   }, []);
 
+  // Mentat home zoom shortcut: when the "home" layer toggle flips on,
+  // fly the camera to MENTAT_HOME_LAT/LON. We don't render a marker —
+  // that would double as a position disclosure and clash with the
+  // "home stays private" rule. The toggle is purely a navigation
+  // shortcut; flipping it off does nothing (no marker to clear).
+  // Reads NEXT_PUBLIC_MENTAT_HOME_LAT/LON at build time; defaults to
+  // Paramaribo city centre (the same fallback the Mentat bridge uses).
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !activeLayers.home) return;
+    const lat = parseFloat(process.env.NEXT_PUBLIC_MENTAT_HOME_LAT || '5.8328');
+    const lng = parseFloat(process.env.NEXT_PUBLIC_MENTAT_HOME_LON || '-55.1748');
+    if (!isFinite(lat) || !isFinite(lng)) return;
+    mapRef.current.flyTo({ center: [lng, lat], zoom: 12, duration: 1500 });
+  }, [mapReady, activeLayers.home]);
+
   // Day/Night
   useEffect(() => {
     if (!mapReady || !mapRef.current) return;
@@ -712,7 +727,7 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
 
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('earthquakes', activeLayers.earthquakes && data.earthquakes ? data.earthquakes.map((eq: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [eq.lng, eq.lat] }, properties: { magnitude: eq.magnitude, place: eq.place } })) : []);
+    setGeo('earthquakes', activeLayers.earthquakes && data.earthquakes ? data.earthquakes.map((eq: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [eq.lng, eq.lat] }, properties: { id: eq.id, magnitude: eq.magnitude, place: eq.place, depth: eq.depth } })) : []);
   }, [mapReady, data.earthquakes, activeLayers.earthquakes, setGeo]);
 
   useEffect(() => {

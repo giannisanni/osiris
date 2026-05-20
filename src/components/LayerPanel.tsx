@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import {
   Plane, Satellite, Activity, Globe, Radio, Eye,
   Shield, Sun, AlertTriangle, Camera, Flame, Target,
-  CloudLightning, Radiation, Tv, Anchor, Ship,
+  CloudLightning, Radiation, Tv, Anchor, Ship, Home,
 } from 'lucide-react';
 
 interface LayerPanelProps {
@@ -30,6 +30,12 @@ const LAYER_CONFIG = [
   { key: 'global_incidents', label: 'Global Incidents', icon: AlertTriangle, color: '#FF3D3D', dataKey: 'gdelt' },
   { key: 'gps_jamming', label: 'GPS Jamming', icon: Radio, color: '#FF4444', dataKey: 'gps_jamming' },
   { key: 'day_night', label: 'Day / Night Cycle', icon: Sun, color: '#448AFF', dataKey: null },
+  // Mentat-specific: zoom-to-home shortcut. dataKey is null because it
+  // doesn't carry any feature data — flipping the toggle just triggers
+  // a flyTo in OsirisMap and (when env-configured) drops a single
+  // marker at MENTAT_HOME_LAT/LON. Privacy: defaults to Paramaribo
+  // city centre, not the exact street address.
+  { key: 'home', label: 'Home', icon: Home, color: '#FFD700', dataKey: null },
 ];
 
 function LayerPanel({ data, activeLayers, setActiveLayers }: LayerPanelProps) {
