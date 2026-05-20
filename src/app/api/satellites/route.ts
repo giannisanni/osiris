@@ -179,18 +179,64 @@ const TLE_SOURCES = [
   { url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=education&FORMAT=tle', type: 'tle', group: 'education' },
 ];
 
+// Persistent on-disk TLE cache. CelesTrak's GP endpoint returns 403
+// + "GP data has not updated since your last successful download" to
+// any client that re-requests the same group inside its 2-hour update
+// window. In Next dev mode that hits us on every restart since the
+// in-memory `revalidate` cache is reset. Saving each successful TLE
+// fetch under /tmp lets us serve the cached copy while CelesTrak
+// is in its cool-off period.
+const TLE_CACHE_DIR = '/tmp/osiris-tle-cache';
+const TLE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;  // 6h — generous; CelesTrak updates every 2h
+
+function cachePathForSource(source: { url: string }): string {
+  // Derive a filename from the URL so different groups don't collide.
+  const match = source.url.match(/GROUP=([^&]+)/);
+  const tag = match ? match[1] : 'default';
+  return `${TLE_CACHE_DIR}/${tag}.tle`;
+}
+
+async function readTLECache(source: { url: string }): Promise<string | null> {
+  try {
+    const fs = await import('fs/promises');
+    const path = cachePathForSource(source);
+    const stat = await fs.stat(path);
+    if (Date.now() - stat.mtimeMs > TLE_CACHE_TTL_MS) return null;
+    return await fs.readFile(path, 'utf-8');
+  } catch {
+    return null;
+  }
+}
+
+async function writeTLECache(source: { url: string }, body: string): Promise<void> {
+  try {
+    const fs = await import('fs/promises');
+    await fs.mkdir(TLE_CACHE_DIR, { recursive: true });
+    await fs.writeFile(cachePathForSource(source), body);
+  } catch {
+    // Best-effort. If the cache write fails we just refetch next time.
+  }
+}
+
 async function fetchTLEFromSource(source: typeof TLE_SOURCES[0]): Promise<string | null> {
   try {
     const res = await fetch(source.url, {
       signal: AbortSignal.timeout(12000),
       headers: { 'User-Agent': 'OSIRIS-Intelligence-Platform/3.4' },
     });
-    if (!res.ok) return null;
-    const text = await res.text();
-    if (text.length < 100 || text.includes('<!DOCTYPE') || text.includes('<html')) return null;
-    return text;
+    if (res.ok) {
+      const text = await res.text();
+      // Sanity guard: HTML pages or "data has not updated" stubs are
+      // not real TLE bodies — reject and fall through to cache.
+      if (text.length >= 100 && !text.includes('<!DOCTYPE') && !text.includes('<html') && !text.includes('GP data has not')) {
+        await writeTLECache(source, text);
+        return text;
+      }
+    }
+    // Live fetch failed (rate-limit, error, or stub). Try the cache.
+    return await readTLECache(source);
   } catch {
-    return null;
+    return await readTLECache(source);
   }
 }
 
