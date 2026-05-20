@@ -46,6 +46,10 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
   // Home marker is created lazily and torn down when the Home layer toggles
   // off — we don't want a permanent rendering of the operator's address.
   const homeMarkerRef = useRef<maplibregl.Marker | null>(null);
+  // 3D orbital satellite layer (Three.js inside a MapLibre custom layer).
+  // Lazy-loaded so the Three.js bundle doesn't bloat the initial JS.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const orbitalLayerRef = useRef<any>(null);
   const [mapReady, setMapReady] = useState(false);
   const prevStyleRef = useRef(mapStyle);
 
@@ -799,6 +803,26 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
     }
   }, [mapReady, activeLayers.home]);
 
+  // 3D satellite orbital layer. Lazy-loaded so Three.js bundle stays
+  // out of the initial JS for users who never toggle Satellites on.
+  useEffect(() => {
+    if (!mapReady || !mapRef.current) return;
+    if (orbitalLayerRef.current) return;
+    let cancelled = false;
+    (async () => {
+      const { SatelliteOrbitalLayer } = await import('./SatelliteOrbitalLayer');
+      if (cancelled || !mapRef.current) return;
+      const layer = new SatelliteOrbitalLayer();
+      try {
+        mapRef.current.addLayer(layer as any);
+        orbitalLayerRef.current = layer;
+      } catch (e) {  // noqa
+        console.warn('[OsirisMap] orbital layer mount failed:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [mapReady]);
+
   // 3D terrain via AWS Terrarium DEM tiles. Public S3 bucket maintained
   // by AWS Open Data — no key, no quota, attribution required (visible
   // via MapLibre's auto attribution control if enabled). DEM encoding
@@ -880,7 +904,22 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
 
   useEffect(() => {
     if (!mapReady) return;
-    setGeo('satellites', activeLayers.satellites && data.satellites ? data.satellites.map((s: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [s.lng, s.lat] }, properties: { name: s.name, color: s.color, mission: s.mission } })) : []);
+    setGeo('satellites', activeLayers.satellites && data.satellites ? data.satellites.map((s: any) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [s.lng, s.lat] }, properties: { name: s.name, color: s.color, mission: s.mission, alt: s.alt, norad_id: s.norad_id || s.norad } })) : []);
+
+    // Sync the 3D orbital layer too. We push the raw satellite list
+    // (with altitude in km) so satellites render at their actual
+    // orbital radius — the visual gap with Cesium-based viewers like
+    // WWV. The flat sat-dots layer stays for hit-testing.
+    if (orbitalLayerRef.current) {
+      orbitalLayerRef.current.setData(
+        activeLayers.satellites && data.satellites
+          ? data.satellites.map((s: any) => ({
+              lat: s.lat, lng: s.lng, alt: s.alt,
+              color: s.color, name: s.name,
+            }))
+          : []
+      );
+    }
   }, [mapReady, data.satellites, activeLayers.satellites, setGeo]);
 
   useEffect(() => {
