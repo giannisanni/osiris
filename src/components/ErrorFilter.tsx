@@ -40,6 +40,8 @@ let installed = false;
 
 if (typeof window !== 'undefined' && !installed) {
   installed = true;
+
+  // 1. Window-level for plain runtime errors / rejections.
   const onError = (e: ErrorEvent) => {
     if (shouldSuppress(e.message)) {
       e.stopImmediatePropagation();
@@ -57,6 +59,21 @@ if (typeof window !== 'undefined' && !installed) {
   };
   window.addEventListener('error', onError, true);
   window.addEventListener('unhandledrejection', onRejection, true);
+
+  // 2. console.error patch. Next.js 16's dev overlay listens to
+  //    console.error to surface errors that happen inside React render
+  //    trees (caught by React's error boundary, never bubble to window).
+  //    The Radix-ScrollArea 'dimensions' crash lives in Next's own
+  //    bundled devtools panel — patching console.error is the only way
+  //    to keep it from popping the overlay.
+  const originalError = console.error;
+  console.error = function patchedError(...args: unknown[]) {
+    const msg = args
+      .map((a) => (typeof a === 'string' ? a : (a as Error)?.message ?? ''))
+      .join(' ');
+    if (shouldSuppress(msg)) return;
+    return originalError.apply(console, args);
+  };
 }
 
 export default function ErrorFilter() {
