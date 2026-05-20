@@ -14,6 +14,7 @@ import ViewPresets from '@/components/ViewPresets';
 import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 import GlobalStatusBar from '@/components/GlobalStatusBar';
 import LiveAlerts from '@/components/LiveAlerts';
+import ClaudeTerminal from '@/components/ClaudeTerminal';
 
 const OsirisMap = dynamic(() => import('@/components/OsirisMap'), { ssr: false });
 const LayerPanel = dynamic(() => import('@/components/LayerPanel'));
@@ -789,6 +790,9 @@ export default function Dashboard() {
 
       {/* ── GLOBAL STATUS TICKER (bottom) ── */}
       <GlobalStatusBar />
+
+      {/* ── CLAUDE CODE PANEL — palantir-style analyst loop ── */}
+      <ClaudeTerminal />
 
       {/* Shortcut hint */}
       <div className="desktop-only absolute bottom-[26px] right-5 z-[200] pointer-events-none text-[6px] font-mono text-[var(--text-muted)]/40 tracking-widest">

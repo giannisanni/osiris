@@ -1,6 +1,6 @@
 {
   "name": "osiris",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.14.0",
     "maplibre-gl": "^5.24.0",
