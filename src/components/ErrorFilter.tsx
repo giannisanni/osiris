@@ -1,7 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
-
 /**
  * Suppresses a small allowlist of dev-time runtime errors that bubble up
  * from third-party code we don't own (Next.js's own devtools panel,
@@ -11,6 +9,12 @@ import { useEffect } from 'react';
  * Each pattern is scoped narrowly so we don't accidentally hide a real
  * regression. Production builds skip the dev overlay entirely so this
  * component is a no-op there.
+ *
+ * The listeners install at MODULE EVALUATION time (not in useEffect) so
+ * they're active before Next.js's own overlay can grab the same events.
+ * Using `capture: true` further ensures we run first in the capture
+ * phase, then stopImmediatePropagation prevents the overlay listener
+ * from firing.
  */
 
 const SUPPRESS_PATTERNS: RegExp[] = [
@@ -31,32 +35,32 @@ function shouldSuppress(msg: string | undefined): boolean {
   return SUPPRESS_PATTERNS.some((p) => p.test(msg));
 }
 
-export default function ErrorFilter() {
-  useEffect(() => {
-    // Window-level error events — stopImmediatePropagation prevents the
-    // Next.js dev overlay listener from picking them up.
-    const onError = (e: ErrorEvent) => {
-      if (shouldSuppress(e.message)) {
-        e.stopImmediatePropagation();
-        e.preventDefault();
-      }
-    };
-    const onRejection = (e: PromiseRejectionEvent) => {
-      const reason = e.reason;
-      const msg = typeof reason === 'string' ? reason
-        : reason?.message ?? String(reason);
-      if (shouldSuppress(msg)) {
-        e.stopImmediatePropagation();
-        e.preventDefault();
-      }
-    };
-    window.addEventListener('error', onError, true);
-    window.addEventListener('unhandledrejection', onRejection, true);
-    return () => {
-      window.removeEventListener('error', onError, true);
-      window.removeEventListener('unhandledrejection', onRejection, true);
-    };
-  }, []);
+// Module-scope flag so HMR / repeated imports don't double-attach.
+let installed = false;
 
+if (typeof window !== 'undefined' && !installed) {
+  installed = true;
+  const onError = (e: ErrorEvent) => {
+    if (shouldSuppress(e.message)) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  };
+  const onRejection = (e: PromiseRejectionEvent) => {
+    const reason = e.reason;
+    const msg =
+      typeof reason === 'string' ? reason : reason?.message ?? String(reason);
+    if (shouldSuppress(msg)) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  };
+  window.addEventListener('error', onError, true);
+  window.addEventListener('unhandledrejection', onRejection, true);
+}
+
+export default function ErrorFilter() {
+  // Component body is just a marker so we can still import + mount it
+  // explicitly in layout.tsx. The side effect lives at module scope.
   return null;
 }

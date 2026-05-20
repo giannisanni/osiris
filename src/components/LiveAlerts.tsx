@@ -9,7 +9,7 @@ import {
 
 interface LiveAlertsProps {
   data: any;
-  onLocate: (lat: number, lng: number) => void;
+  onLocate: (lat: number, lng: number, alertType?: string) => void;
   onWatchFeed?: (url: string, name: string) => void;
 }
 
@@ -162,7 +162,7 @@ export default function LiveAlerts({ data, onLocate, onWatchFeed }: LiveAlertsPr
                   <button
                     key={i}
                     onClick={() => {
-                      onLocate(alert.lat, alert.lng);
+                      onLocate(alert.lat, alert.lng, alert.type);
                       if (alert.feedUrl && onWatchFeed) {
                         onWatchFeed(alert.feedUrl, alert.title);
                       }

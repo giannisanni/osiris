@@ -517,15 +517,26 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       </div>`);
     });
 
+    // Helper: ask-Claude button HTML. The data-claude-prompt attribute
+    // is read by a document-level click delegate (installed below) that
+    // dispatches `mentat:ask-claude` so the ClaudeTerminal can open
+    // itself and queue the input. Inline onclick would break under
+    // popup HTML escaping; this is sturdier.
+    const askClaudeBtn = (prompt: string, color: string) =>
+      `<button type="button" data-claude-prompt="${prompt.replace(/"/g, '&quot;')}" style="${linkStyle}background:rgba(212,175,55,0.12);color:#D4AF37;border:1px solid rgba(212,175,55,0.5);cursor:pointer;display:inline-flex;align-items:center;gap:4px;">🧠 ASK CLAUDE</button>`;
+
     // ── GDELT Conflicts (with source article) ──
     map.on('click', 'gdelt-dots', e => {
       if (!e.features?.length) return;
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
+      const incident = p.name || 'an unclassified conflict event';
+      const prompt = `Brief me on ${incident} near ${coords[1].toFixed(3)}, ${coords[0].toFixed(3)}. Use the world-osint skill — check news, gdelt, fires, and maritime for this region, then synthesize.`;
       popup(coords, `<div style="${pStyle}border:1px solid rgba(255,61,61,0.3);">
         <div style="color:#FF3D3D;font-size:12px;font-weight:700;margin-bottom:6px;">⚠️ CONFLICT EVENT</div>
         <div style="font-size:9px;color:#E8E6E0;margin-bottom:8px;line-height:1.4;">${p.name||'Unclassified incident'}</div>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${askClaudeBtn(prompt, '#D4AF37')}
           ${p.url ? `<a href="${p.url}" target="_blank" style="${linkStyle}color:#FF3D3D;border:1px solid rgba(255,61,61,0.4);background:rgba(255,61,61,0.1);">SOURCE</a>` : ''}
           <a href="https://www.google.com/maps/@${coords[1]},${coords[0]},12z" target="_blank" style="${linkStyle}color:#448AFF;border:1px solid rgba(68,138,255,0.4);background:rgba(68,138,255,0.1);">MAP</a>
         </div>
@@ -538,6 +549,8 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       const p = e.features[0].properties as any;
       const coords = (e.features[0].geometry as any).coordinates;
       const color = p.severity === 'war' ? '#FF1744' : p.severity === 'high' ? '#FF9500' : '#FFD500';
+      const label = p.label || 'this incident';
+      const prompt = `Brief me on ${label} (severity ${p.severity || 'unknown'}) at ${coords[1].toFixed(3)}, ${coords[0].toFixed(3)}. Use the world-osint skill — check news, gdelt, fires, and maritime for this region, then synthesize what's happening today.`;
       popup(coords, `<div style="${pStyle}border:1px solid ${color}40;">
         <div style="color:${color};font-size:12px;font-weight:700;margin-bottom:6px;">⚠️ ${p.label || 'WARNING EVENT'}</div>
         <div style="font-size:10px;color:#E8E6E0;margin-bottom:8px;line-height:1.4;">${p.description || 'Global event detected at this location.'}</div>
@@ -545,8 +558,26 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
           <div><span style="color:#5C5A54;">SEVERITY</span><br/><span style="color:${color};">${(p.severity||'unknown').toUpperCase()}</span></div>
           <div><span style="color:#5C5A54;">COORDS</span><br/><span style="color:#E8E6E0;">${coords[1].toFixed(3)}°, ${coords[0].toFixed(3)}°</span></div>
         </div>
+        <div style="display:flex;gap:6px;">${askClaudeBtn(prompt, color)}</div>
       </div>`);
     });
+
+    // Document-level click delegate for ask-Claude buttons. Popups are
+    // raw HTML inside MapLibre's own Popup container, so React event
+    // handlers can't reach them. The button carries the prompt in a
+    // data attribute; we dispatch a window event the ClaudeTerminal
+    // listens for (open panel + queue prompt + send on WS-open).
+    const onAskClaudeClick = (ev: MouseEvent) => {
+      const target = ev.target as HTMLElement | null;
+      if (!target) return;
+      const btn = target.closest('[data-claude-prompt]') as HTMLElement | null;
+      if (!btn) return;
+      const prompt = btn.getAttribute('data-claude-prompt');
+      if (!prompt) return;
+      ev.preventDefault();
+      window.dispatchEvent(new CustomEvent('mentat:ask-claude', { detail: { prompt } }));
+    };
+    document.addEventListener('click', onAskClaudeClick);
 
 
     // ── Generic hover for clickables ──
@@ -693,7 +724,11 @@ function OsirisMap({ data, activeLayers, onEntityClick, onMouseCoords, onRightCl
       });
     });
 
-    return () => { map.remove(); mapRef.current = null; };
+    return () => {
+      document.removeEventListener('click', onAskClaudeClick);
+      map.remove();
+      mapRef.current = null;
+    };
   }, []);
 
   // Mentat home pin + zoom shortcut. When the operator flips the "home"

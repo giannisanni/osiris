@@ -29,7 +29,13 @@ const WS_URL =
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_MENTAT_WS_URL) ||
   'ws://substrate:8100/api/terminal/claude';
 
-function ClaudePanel({ onClose }: { onClose: () => void }) {
+function ClaudePanel({
+  onClose,
+  consumePendingPrompt,
+}: {
+  onClose: () => void;
+  consumePendingPrompt?: () => string | null;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -120,6 +126,26 @@ function ClaudePanel({ onClose }: { onClose: () => void }) {
     };
   }, [reconnectTick]);
 
+  // Drain a queued "ask Claude about this" prompt once the WS is open
+  // AND Claude's TUI has settled. Brute timing: wait 2.5s after the
+  // socket opens for the splash + trust prompt to clear, then type the
+  // prompt followed by a return. Crude but works for the first-pass UX;
+  // a cleaner approach would be to wait for a specific glyph from the
+  // PTY output stream.
+  useEffect(() => {
+    if (status !== 'open' || !consumePendingPrompt) return;
+    const prompt = consumePendingPrompt();
+    if (!prompt) return;
+    const ws = wsRef.current;
+    if (!ws) return;
+    const timer = setTimeout(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', data: prompt + '\r' }));
+      }
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [status, consumePendingPrompt]);
+
   const dotColor =
     status === 'open' ? '#39FF14'
     : status === 'connecting' ? '#FF9500'
@@ -181,11 +207,46 @@ function ClaudePanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+// Module-level queue for the prompt-on-open flow. The "ask Claude about
+// this incident" buttons in popup HTML dispatch a window event that
+// lands here; the panel reads from it after the WebSocket comes up.
+// Using a module ref instead of state so popping the value doesn't race
+// with React's render cycle (the popup buttons fire from raw HTML, not
+// React events).
+let pendingPrompt: string | null = null;
+let setOpenFromAnywhere: ((v: boolean) => void) | null = null;
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('mentat:ask-claude', ((ev: CustomEvent) => {
+    const prompt = ev.detail?.prompt;
+    if (typeof prompt === 'string' && prompt.trim()) {
+      pendingPrompt = prompt;
+      setOpenFromAnywhere?.(true);
+    }
+  }) as EventListener);
+}
+
 export default function ClaudeTerminal() {
   const [open, setOpen] = useState(false);
 
+  // Expose setOpen so the global window listener (above) can pop the
+  // panel on demand. Cleared on unmount.
+  useEffect(() => {
+    setOpenFromAnywhere = setOpen;
+    return () => { setOpenFromAnywhere = null; };
+  }, []);
+
   if (open) {
-    return <ClaudePanel onClose={() => setOpen(false)} />;
+    return (
+      <ClaudePanel
+        onClose={() => setOpen(false)}
+        consumePendingPrompt={() => {
+          const p = pendingPrompt;
+          pendingPrompt = null;
+          return p;
+        }}
+      />
+    );
   }
 
   // Launcher: floating button bottom-right. Same Mentat-gold treatment

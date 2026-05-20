@@ -529,7 +529,28 @@ export default function Dashboard() {
           <div className="relative"><SharePanel mapView={mapView} activeLayers={activeLayers} mouseCoords={mouseCoords} /></div>
         </div>
         <OsintPanel />
-        <LiveAlerts data={data} onLocate={(lat, lng) => setFlyToLocation({ lat, lng, ts: Date.now() })} onWatchFeed={(url, name) => { setLiveFeedUrl(url); setLiveFeedName(name); }} />
+        <LiveAlerts
+          data={data}
+          onLocate={(lat, lng, type) => {
+            setFlyToLocation({ lat, lng, ts: Date.now() });
+            // Auto-enable the corresponding data layer so the operator
+            // actually sees the marker at the destination. Was a dead
+            // flyTo when the matching layer was off — camera moved but
+            // nothing rendered to click.
+            const layerByType: Record<string, string> = {
+              quake: 'earthquakes',
+              news: 'live_news',
+              feed: 'live_news',
+              fire: 'fires',
+              conflict: 'global_incidents',
+            };
+            const layerKey = type ? layerByType[type] : undefined;
+            if (layerKey) {
+              setActiveLayers((prev: any) => ({ ...prev, [layerKey]: true }));
+            }
+          }}
+          onWatchFeed={(url, name) => { setLiveFeedUrl(url); setLiveFeedName(name); }}
+        />
       </div>
 
       {/* ── LIVE FEED VIEWER OVERLAY ── */}
